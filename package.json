@@ -65,6 +65,6 @@
     "lint",
     "test"
   ],
-  "main": "./index.js",
+  "main": "./lib-jitsi-meet.min.js",
   "license": "Apache-2.0"
 }
