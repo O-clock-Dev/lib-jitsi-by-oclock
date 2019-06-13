@@ -41,6 +41,16 @@ function createConnection(token, bosh = '/http-bind') {
     return conn;
 }
 
+// FIXME: remove once we have a default config template. -saghul
+/**
+ * A list of ice servers to use by default for P2P.
+ */
+export const DEFAULT_STUN_SERVERS = [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun2.l.google.com:19302' }
+];
+
 /**
  * The name of the field used to recognize a chat message as carrying a JSON
  * payload from another endpoint.
@@ -82,7 +92,11 @@ export default class XMPP extends Listenable {
         // they wanted to utilize the connected connection in an unload handler
         // of their own. However, it should be fairly easy for them to do that
         // by registering their unload handler before us.
-        $(window).on('beforeunload unload', this.disconnect.bind(this));
+        $(window).on('beforeunload unload', ev => {
+            this.disconnect(ev).catch(() => {
+                // ignore errors in order to not brake the unload.
+            });
+        });
     }
 
     /**
@@ -127,6 +141,15 @@ export default class XMPP extends Listenable {
     }
 
     /**
+     * Returns {@code true} if the PING functionality is supported by the server
+     * or {@code false} otherwise.
+     * @returns {boolean}
+     */
+    isPingSupported() {
+        return this._pingSupported !== false;
+    }
+
+    /**
      *
      */
     getConnection() {
@@ -152,6 +175,8 @@ export default class XMPP extends Listenable {
         logger.log(
             `(TIME) Strophe ${statusStr}${msg ? `[${msg}]` : ''}:\t`,
             now);
+
+        this.eventEmitter.emit(XMPPEvents.CONNECTION_STATUS_CHANGED, credentials, status, msg);
         if (status === Strophe.Status.CONNECTED
             || status === Strophe.Status.ATTACHED) {
             if (this.options.useStunTurn
@@ -167,6 +192,7 @@ export default class XMPP extends Listenable {
             this.caps.getFeaturesAndIdentities(pingJid)
                 .then(({ features, identities }) => {
                     if (features.has(Strophe.NS.PING)) {
+                        this._pingSupported = true;
                         this.connection.ping.startInterval(pingJid);
                     } else {
                         logger.warn(`Ping NOT supported by ${pingJid}`);
@@ -401,6 +427,15 @@ export default class XMPP extends Listenable {
     }
 
     /**
+     * Returns the jid of the participant associated with the Strophe connection.
+     *
+     * @returns {string} The jid of the participant.
+     */
+    getJid() {
+        return this.connection.jid;
+    }
+
+    /**
      * Returns the logs from strophe.jingle.
      * @returns {Object}
      */
@@ -423,6 +458,24 @@ export default class XMPP extends Listenable {
      */
     dial(...args) {
         this.connection.rayo.dial(...args);
+    }
+
+    /**
+     * Pings the server. Remember to check {@link isPingSupported} before using
+     * this method.
+     * @param timeout how many ms before a timeout should occur.
+     * @returns {Promise} resolved on ping success and reject on an error or
+     * a timeout.
+     */
+    ping(timeout) {
+        return new Promise((resolve, reject) => {
+            if (this.isPingSupported()) {
+                this.connection.ping
+                    .ping(this.connection.domain, resolve, reject, timeout);
+            } else {
+                reject('PING operation is not supported by the server');
+            }
+        });
     }
 
     /**
@@ -452,50 +505,62 @@ export default class XMPP extends Listenable {
     /**
      * Disconnects this from the XMPP server (if this is connected).
      *
-     * @param ev optionally, the event which triggered the necessity to
+     * @param {Object} ev - Optionally, the event which triggered the necessity to
      * disconnect from the XMPP server (e.g. beforeunload, unload).
+     * @returns {Promise} - Resolves when the disconnect process is finished or rejects with an error.
      */
     disconnect(ev) {
         if (this.disconnectInProgress || !this.connection) {
             this.eventEmitter.emit(JitsiConnectionEvents.WRONG_STATE);
 
-            return;
+            return Promise.reject(new Error('Wrong connection state!'));
         }
 
         this.disconnectInProgress = true;
 
-        // XXX Strophe is asynchronously sending by default. Unfortunately, that
-        // means that there may not be enough time to send an unavailable
-        // presence or disconnect at all. Switching Strophe to synchronous
-        // sending is not much of an option because it may lead to a noticeable
-        // delay in navigating away from the current location. As a compromise,
-        // we will try to increase the chances of sending an unavailable
-        // presence and/or disconecting within the short time span that we have
-        // upon unloading by invoking flush() on the connection. We flush() once
-        // before disconnect() in order to attemtp to have its unavailable
-        // presence at the top of the send queue. We flush() once more after
-        // disconnect() in order to attempt to have its unavailable presence
-        // sent as soon as possible.
-        this.connection.flush();
+        return new Promise(resolve => {
+            const disconnectListener = (credentials, status) => {
+                if (status === Strophe.Status.DISCONNECTED) {
+                    resolve();
+                    this.eventEmitter.removeListener(XMPPEvents.CONNECTION_STATUS_CHANGED, disconnectListener);
+                }
+            };
 
-        if (ev !== null && typeof ev !== 'undefined') {
-            const evType = ev.type;
+            this.eventEmitter.on(XMPPEvents.CONNECTION_STATUS_CHANGED, disconnectListener);
 
-            if (evType === 'beforeunload' || evType === 'unload') {
-                // XXX Whatever we said above, synchronous sending is the best
-                // (known) way to properly disconnect from the XMPP server.
-                // Consequently, it may be fine to have the source code and
-                // comment it in or out depending on whether we want to run with
-                // it for some time.
-                this.connection.options.sync = true;
-            }
-        }
-
-        this.connection.disconnect();
-
-        if (this.connection.options.sync !== true) {
+            // XXX Strophe is asynchronously sending by default. Unfortunately, that
+            // means that there may not be enough time to send an unavailable
+            // presence or disconnect at all. Switching Strophe to synchronous
+            // sending is not much of an option because it may lead to a noticeable
+            // delay in navigating away from the current location. As a compromise,
+            // we will try to increase the chances of sending an unavailable
+            // presence and/or disconecting within the short time span that we have
+            // upon unloading by invoking flush() on the connection. We flush() once
+            // before disconnect() in order to attemtp to have its unavailable
+            // presence at the top of the send queue. We flush() once more after
+            // disconnect() in order to attempt to have its unavailable presence
+            // sent as soon as possible.
             this.connection.flush();
-        }
+
+            if (ev !== null && typeof ev !== 'undefined') {
+                const evType = ev.type;
+
+                if (evType === 'beforeunload' || evType === 'unload') {
+                    // XXX Whatever we said above, synchronous sending is the best
+                    // (known) way to properly disconnect from the XMPP server.
+                    // Consequently, it may be fine to have the source code and
+                    // comment it in or out depending on whether we want to run with
+                    // it for some time.
+                    this.connection.options.sync = true;
+                }
+            }
+
+            this.connection.disconnect();
+
+            if (this.connection.options.sync !== true) {
+                this.connection.flush();
+            }
+        });
     }
 
     /**
@@ -507,15 +572,8 @@ export default class XMPP extends Listenable {
             p2p: { iceServers: [ ] }
         };
 
-        // FIXME: remove once we have a default config template. -saghul
-        const defaultStunServers = [
-            { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' },
-            { urls: 'stun:stun2.l.google.com:19302' }
-        ];
-
         const p2pStunServers = (this.options.p2p
-            && this.options.p2p.stunServers) || defaultStunServers;
+            && this.options.p2p.stunServers) || DEFAULT_STUN_SERVERS;
 
         if (Array.isArray(p2pStunServers)) {
             logger.info('P2P STUN servers: ', p2pStunServers);

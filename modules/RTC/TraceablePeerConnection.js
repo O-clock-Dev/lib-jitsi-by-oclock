@@ -52,6 +52,7 @@ const SIM_LAYER_RIDS = [ SIM_LAYER_1_RID, SIM_LAYER_2_RID, SIM_LAYER_3_RID ];
  * @param {boolean} options.enableLayerSuspension if set to 'true', we will
  * cap the video send bitrate when we are told we have not been selected by
  * any endpoints (and therefore the non-thumbnail streams are not in use).
+ * @param {boolean} options.startSilent If set to 'true' no audio will be sent or received.
  *
  * FIXME: initially the purpose of TraceablePeerConnection was to be able to
  * debug the peer connection. Since many other responsibilities have been added
@@ -77,7 +78,7 @@ export default function TraceablePeerConnection(
      * @type {boolean}
      * @private
      */
-    this.audioTransferActive = true;
+    this.audioTransferActive = !(options.startSilent === true);
 
     /**
      * Indicates whether or not this peer connection instance is actively
@@ -1166,8 +1167,9 @@ function replaceDefaultUnifiedPlanMsid(ssrcLines = []) {
 /**
  * Makes sure that both audio and video directions are configured as 'sendrecv'.
  * @param {Object} localDescription the SDP object as defined by WebRTC.
+ * @param {object} options <tt>TracablePeerConnection</tt> config options.
  */
-const enforceSendRecv = function(localDescription) {
+const enforceSendRecv = function(localDescription, options) {
     if (!localDescription) {
         throw new Error('No local description passed in.');
     }
@@ -1177,7 +1179,12 @@ const enforceSendRecv = function(localDescription) {
     let changed = false;
 
     if (audioMedia && audioMedia.direction !== 'sendrecv') {
-        audioMedia.direction = 'sendrecv';
+        if (options.startSilent) {
+            audioMedia.direction = 'inactive';
+        } else {
+            audioMedia.direction = 'sendrecv';
+        }
+
         changed = true;
     }
 
@@ -1298,7 +1305,7 @@ const getters = {
         // Note that the description we set in chrome does have the accurate
         // direction (e.g. 'recvonly'), since that is technically what is
         // happening (check setLocalDescription impl).
-        desc = enforceSendRecv(desc);
+        desc = enforceSendRecv(desc, this.options);
 
         // See the method's doc for more info about this transformation.
         desc = this.localSdpMunger.transformStreamIdentifiers(desc);
@@ -1435,8 +1442,8 @@ TraceablePeerConnection.prototype._addStream = function(mediaStream) {
  * @param {MediaStream} mediaStream
  */
 TraceablePeerConnection.prototype._removeStream = function(mediaStream) {
-    if (browser.isFirefox()) {
-        this._handleFirefoxRemoveStream(mediaStream);
+    if (browser.supportsRtpSender()) {
+        this._handleSenderRemoveStream(mediaStream);
     } else {
         this.peerconnection.removeStream(mediaStream);
     }
@@ -1500,8 +1507,8 @@ TraceablePeerConnection.prototype.removeTrack = function(localTrack) {
     this.localSSRCs.delete(localTrack.rtcId);
 
     if (webRtcStream) {
-        if (browser.isFirefox()) {
-            this._handleFirefoxRemoveStream(webRtcStream);
+        if (browser.supportsRtpSender()) {
+            this._handleSenderRemoveStream(webRtcStream);
         } else {
             this.peerconnection.removeStream(webRtcStream);
         }
@@ -1541,7 +1548,7 @@ TraceablePeerConnection.prototype.findSenderByStream = function(stream) {
  * renegotiation will be needed. Otherwise no renegotiation is needed.
  */
 TraceablePeerConnection.prototype.replaceTrack = function(oldTrack, newTrack) {
-    if (browser.isFirefox() && oldTrack && newTrack) {
+    if (browser.supportsRtpSender() && oldTrack && newTrack) {
         // Add and than remove stream in FF leads to wrong local SDP. In order
         // to workaround the issue we need to use sender.replaceTrack().
         const sender = this.findSenderByStream(oldTrack.getOriginalStream());
@@ -1628,10 +1635,10 @@ TraceablePeerConnection.prototype.removeTrackMute = function(localTrack) {
 };
 
 /**
- * Remove stream handling for firefox
+ * Remove stream handling for browsers supporting RTPSender
  * @param stream: webrtc media stream
  */
-TraceablePeerConnection.prototype._handleFirefoxRemoveStream = function(
+TraceablePeerConnection.prototype._handleSenderRemoveStream = function(
         stream) {
     if (!stream) {
         // There is nothing to be changed
@@ -1810,7 +1817,7 @@ TraceablePeerConnection.prototype.setLocalDescription = function(description) {
  * disabled the SDP audio media direction in the local SDP will be adjusted to
  * 'inactive' which means that no data will be sent nor accepted, but
  * the connection should be kept alive.
- * @param {boolean} active <tt>true</tt> to enable video media transmission or
+ * @param {boolean} active <tt>true</tt> to enable audio media transmission or
  * <tt>false</tt> to disable. If the value is not a boolean the call will have
  * no effect.
  * @return {boolean} <tt>true</tt> if the value has changed and sRD/sLD cycle
@@ -1924,7 +1931,7 @@ TraceablePeerConnection.prototype.setRemoteDescription = function(description) {
 
     // Safari WebRTC errors when no supported video codec is found in the offer.
     // To prevent the error, inject H264 into the video mLine.
-    if (browser.isSafariWithWebrtc()) {
+    if (browser.isSafariWithWebrtc() && !browser.isSafariWithVP8()) {
         logger.debug('Maybe injecting H264 into the remote description');
 
         // eslint-disable-next-line no-param-reassign
@@ -2104,7 +2111,7 @@ TraceablePeerConnection.prototype.close = function() {
  * Modifies the values of the setup attributes (defined by
  * {@link http://tools.ietf.org/html/rfc4145#section-4}) of a specific SDP
  * answer in order to overcome a delay of 1 second in the connection
- * establishment between Chrome and Videobridge.
+ * establishment between some devices and Videobridge.
  *
  * @param {SDP} offer - the SDP offer to which the specified SDP answer is
  * being prepared to respond
@@ -2112,13 +2119,13 @@ TraceablePeerConnection.prototype.close = function() {
  * @private
  */
 const _fixAnswerRFC4145Setup = function(offer, answer) {
-    if (!browser.isChrome()) {
+    if (!(browser.isChromiumBased() || browser.isReactNative())) {
         // It looks like Firefox doesn't agree with the fix (at least in its
         // current implementation) because it effectively remains active even
         // after we tell it to become passive. Apart from Firefox which I tested
         // after the fix was deployed, I tested Chrome only. In order to prevent
-        // issues with other browsers, limit the fix to Chrome for the time
-        // being.
+        // issues with other browsers, limit the fix to known devices for the
+        // time being.
         return;
     }
 
@@ -2160,10 +2167,10 @@ const _fixAnswerRFC4145Setup = function(offer, answer) {
 };
 
 TraceablePeerConnection.prototype.createAnswer = function(constraints) {
-    if (browser.supportsRtpSender() && this.isSimulcastOn()) {
+    if (browser.isFirefox() && this.isSimulcastOn()) {
         const videoSender
             = this.peerconnection.getSenders().find(sender =>
-                sender.track.kind === 'video');
+                sender.track !== null && sender.track.kind === 'video');
         const simParams = {
             encodings: [
                 {
@@ -2227,7 +2234,7 @@ TraceablePeerConnection.prototype._createOfferOrAnswer = function(
              *  after that, when we try and go back to unified plan it will
              *  complain about unmapped ssrcs)
              */
-            if (!browser.isFirefox()) {
+            if (!browser.usesUnifiedPlan()) {
                 // If there are no local video tracks, then a "recvonly"
                 // SSRC needs to be generated
                 if (!this.hasAnyTracksOfType(MediaType.VIDEO)
@@ -2388,8 +2395,11 @@ TraceablePeerConnection.prototype._processLocalSSRCsMap = function(ssrcMap) {
                     `The local SSRC(${newSSRCNum}) for ${track} ${trackMSID}`
                      + `is still up to date in ${this}`);
             }
-        } else {
-            logger.warn(`No local track matched with: ${trackMSID} in ${this}`);
+        } else if (!track.isVideoTrack() && !track.isMuted()) {
+            // It is normal to find no SSRCs for a muted video track in
+            // the local SDP as the recv-only SSRC is no longer munged in.
+            // So log the warning only if it's not a muted video track.
+            logger.warn(`No SSRCs found in the local SDP for ${track} MSID: ${trackMSID} in ${this}`);
         }
     }
 };

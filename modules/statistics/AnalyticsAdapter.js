@@ -60,6 +60,15 @@ class AnalyticsAdapter {
      * Creates new AnalyticsAdapter instance.
      */
     constructor() {
+        this.reset();
+    }
+
+    /**
+     * Reset the state to the initial one.
+     *
+     * @returns {void}
+     */
+    reset() {
         /**
          * Whether this AnalyticsAdapter has been disposed of or not. Once this
          * is set to true, the AnalyticsAdapter is disabled and does not accept
@@ -106,6 +115,15 @@ class AnalyticsAdapter {
      */
     dispose() {
         logger.warn('Disposing of analytics adapter.');
+
+        if (this.analyticsHandlers && this.analyticsHandlers.size > 0) {
+            this.analyticsHandlers.forEach(handler => {
+                if (typeof handler.dispose === 'function') {
+                    handler.dispose();
+                }
+            });
+        }
+
         this.setAnalyticsHandlers([]);
         this.disposed = true;
     }

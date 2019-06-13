@@ -189,17 +189,63 @@ export default class RTC extends Listenable {
         // The last N change listener.
         this._lastNChangeListener = this._onLastNChanged.bind(this);
 
+        this._onDeviceListChanged = this._onDeviceListChanged.bind(this);
+        this._updateAudioOutputForAudioTracks
+            = this._updateAudioOutputForAudioTracks.bind(this);
+
         // Switch audio output device on all remote audio tracks. Local audio
         // tracks handle this event by themselves.
         if (RTCUtils.isDeviceChangeAvailable('output')) {
-            RTCUtils.addListener(RTCEvents.AUDIO_OUTPUT_DEVICE_CHANGED,
-                deviceId => this._updateAudioOutputForAudioTracks(deviceId));
+            RTCUtils.addListener(
+                RTCEvents.AUDIO_OUTPUT_DEVICE_CHANGED,
+                this._updateAudioOutputForAudioTracks
+            );
 
             RTCUtils.addListener(
                 RTCEvents.DEVICE_LIST_CHANGED,
-                () => this._updateAudioOutputForAudioTracks(
-                    RTCUtils.getAudioOutputDevice()));
+                this._onDeviceListChanged
+            );
         }
+    }
+
+    /**
+     * Removes any listeners and stored state from this {@code RTC} instance.
+     *
+     * @returns {void}
+     */
+    destroy() {
+        RTCUtils.removeListener(
+            RTCEvents.AUDIO_OUTPUT_DEVICE_CHANGED,
+            this._updateAudioOutputForAudioTracks
+        );
+
+        RTCUtils.removeListener(
+            RTCEvents.DEVICE_LIST_CHANGED,
+            this._onDeviceListChanged
+        );
+
+        this.removeListener(
+            RTCEvents.LASTN_ENDPOINT_CHANGED,
+            this._lastNChangeListener
+        );
+
+        if (this._channelOpenListener) {
+            this.removeListener(
+                RTCEvents.DATA_CHANNEL_OPEN,
+                this._channelOpenListener
+            );
+        }
+    }
+
+    /**
+     * Exposes the private helper for converting a WebRTC MediaStream to a
+     * JitsiLocalTrack.
+     *
+     * @param {Array<Object>} tracksInfo
+     * @returns {Array<JitsiLocalTrack>}
+     */
+    static newCreateLocalTracks(tracksInfo) {
+        return _newCreateLocalTracks(tracksInfo);
     }
 
     /**
@@ -289,6 +335,18 @@ export default class RTC extends Listenable {
         // Add Last N change listener.
         this.addListener(RTCEvents.LASTN_ENDPOINT_CHANGED,
             this._lastNChangeListener);
+    }
+
+    /**
+     * Callback invoked when the list of known audio and video devices has
+     * been updated. Attempts to update the known available audio output
+     * devices.
+     *
+     * @private
+     * @returns {void}
+     */
+    _onDeviceListChanged() {
+        this._updateAudioOutputForAudioTracks(RTCUtils.getAudioOutputDevice());
     }
 
     /**
@@ -436,6 +494,7 @@ export default class RTC extends Listenable {
      *      disabled by removing it from the SDP.
      * @param {boolean} options.preferH264 If set to 'true' H264 will be
      *      preferred over other video codecs.
+     * @param {boolean} options.startSilent If set to 'true' no audio will be sent or received.
      * @return {TraceablePeerConnection}
      */
     createPeerConnection(signaling, iceConfig, isP2P, options) {
