@@ -648,10 +648,10 @@
     lodash "^4.17.10"
     to-fast-properties "^2.0.0"
 
-"@jitsi/sdp-interop@0.1.13":
-  version "0.1.13"
-  resolved "https://registry.yarnpkg.com/@jitsi/sdp-interop/-/sdp-interop-0.1.13.tgz#1ab2bf34843fa4b59fca54a886cc3a2d8eaf2d46"
-  integrity sha512-U/UI1W9NULZj7PgP9GVzWfvIQ4T2LJBvMj4dNKclHqLMXIZ9aSuWEeYe/Q9jB+J7vot+M9ofALtO4w5xifffoQ==
+"@jitsi/sdp-interop@0.1.14":
+  version "0.1.14"
+  resolved "https://registry.yarnpkg.com/@jitsi/sdp-interop/-/sdp-interop-0.1.14.tgz#a138448bf5e0868842ac0be7a8cd224511512674"
+  integrity sha512-v60VAtBx9LO46c9In9oMNY+Ho5993UMOLHBg6VcrcyoVTIWIeqs/9YjjmrQ3Sf4I5aMRABNl7HTby/1lHcqFJw==
   dependencies:
     sdp-transform "2.3.0"
 
@@ -1078,11 +1078,6 @@ balanced-match@^1.0.0:
   version "1.0.0"
   resolved "https://registry.yarnpkg.com/balanced-match/-/balanced-match-1.0.0.tgz#89b4d199ab2bee49de164ea02b89ce462d71b767"
   integrity sha1-ibTRmasr7kneFk6gK4nORi1xt2c=
-
-base-64@0.1.0:
-  version "0.1.0"
-  resolved "https://registry.yarnpkg.com/base-64/-/base-64-0.1.0.tgz#780a99c84e7d600260361511c4877613bf24f6bb"
-  integrity sha1-eAqZyE59YAJgNhURxId2E78k9rs=
 
 base64-arraybuffer@0.1.5:
   version "0.1.5"
@@ -2129,9 +2124,9 @@ escape-string-regexp@^1.0.2, escape-string-regexp@^1.0.5:
   resolved "https://registry.yarnpkg.com/escape-string-regexp/-/escape-string-regexp-1.0.5.tgz#1b61c0562190a8dff6ae3bb2cf0200ca130b86d4"
   integrity sha1-G2HAViGQqN/2rjuyzwIAyhMLhtQ=
 
-"eslint-config-jitsi@github:jitsi/eslint-config-jitsi#7474f6668515eb5852f1273dc5a50b940a550d3f":
-  version "0.1.0"
-  resolved "https://codeload.github.com/jitsi/eslint-config-jitsi/tar.gz/7474f6668515eb5852f1273dc5a50b940a550d3f"
+"eslint-config-jitsi@github:jitsi/eslint-config-jitsi#1.0.0":
+  version "1.0.0"
+  resolved "https://codeload.github.com/jitsi/eslint-config-jitsi/tar.gz/1f3fbcea8baa1ab95929a351be3977e00cb162ec"
 
 eslint-import-resolver-node@^0.3.1:
   version "0.3.2"
@@ -2495,10 +2490,10 @@ flat-cache@^1.2.1:
     rimraf "~2.6.2"
     write "^0.2.1"
 
-flow-bin@0.78.0:
-  version "0.78.0"
-  resolved "https://registry.yarnpkg.com/flow-bin/-/flow-bin-0.78.0.tgz#df9fe7f9c9a2dfaff39083949fe2d831b41627b7"
-  integrity sha512-LV55tE+ItkC9HQAbEK+VxpBe54Ryp/dj4q9KmqDIfhV7mtP+hbvc/1AUf/AaWFIve3eURO0cxoGN4ZQQ3o2HTg==
+flow-bin@0.92.0:
+  version "0.92.0"
+  resolved "https://registry.yarnpkg.com/flow-bin/-/flow-bin-0.92.0.tgz#f5bf3e808b17b480e067ac673829ca715a168bea"
+  integrity sha512-3ErXSAXZZlLV5/QPlaUDCWlDUXop1SiH32ifXL3SEiBwsmGbudCLim+HFVZfkegrn1nB4TcNSkMWtW8SnMPyAQ==
 
 flush-write-stream@^1.0.0:
   version "1.0.3"
@@ -3218,11 +3213,6 @@ json5@^1.0.1:
   integrity sha512-aKS4WQjPenRxiQsC93MNfjx+nbF4PAdYzmd/1JIj8HYzqfbu86beTuNgXDzPknWk0n0uARlyewZo4s++ES36Ow==
   dependencies:
     minimist "^1.2.0"
-
-jssha@^2.2.0:
-  version "2.3.1"
-  resolved "https://registry.yarnpkg.com/jssha/-/jssha-2.3.1.tgz#147b2125369035ca4b2f7d210dc539f009b3de9a"
-  integrity sha1-FHshJTaQNcpLL30hDcU58Amz3po=
 
 karma-chrome-launcher@2.2.0:
   version "2.2.0"
@@ -4312,14 +4302,6 @@ rc@^1.2.7:
     minimist "^1.2.0"
     strip-json-comments "~2.0.1"
 
-react-native-callstats@3.53.4:
-  version "3.53.4"
-  resolved "https://registry.yarnpkg.com/react-native-callstats/-/react-native-callstats-3.53.4.tgz#6f4dc21db3a98d3dc91e768659eed69fa344f2bf"
-  integrity sha512-LN6CVKHSVTz+CJ6hGuGaxC2bbknoIACEMYLKZ/dcTMEepibaac3bZ+Evilgq0ot+E1BBBFkOo9hiOUU1cgqLXQ==
-  dependencies:
-    base-64 "0.1.0"
-    jssha "^2.2.0"
-
 read-pkg-up@^2.0.0:
   version "2.0.0"
   resolved "https://registry.yarnpkg.com/read-pkg-up/-/read-pkg-up-2.0.0.tgz#6b72a8048984e0c41e79510fd5e9fa99b3b549be"
@@ -4992,10 +4974,10 @@ strip-json-comments@~2.0.1:
   resolved "https://registry.yarnpkg.com/strip-json-comments/-/strip-json-comments-2.0.1.tgz#3c531942e908c2697c0ec344858c286c7ca0a60a"
   integrity sha1-PFMZQukIwml8DsNEhYwobHygpgo=
 
-strophe.js@1.2.15:
-  version "1.2.15"
-  resolved "https://registry.yarnpkg.com/strophe.js/-/strophe.js-1.2.15.tgz#959878f03a43881eddb8443a8ea77aa3816e9c24"
-  integrity sha512-aM5SCLltSLKubPNil28ieJ03I+15jcVX02c1/7SBVIUWRfwfxwondRJSMJpB7OBss5b3jCNxpTqig8nXncJ5yg==
+strophe.js@1.2.16:
+  version "1.2.16"
+  resolved "https://registry.yarnpkg.com/strophe.js/-/strophe.js-1.2.16.tgz#2ac837c9838f364821213a4cd7748789c13912f6"
+  integrity sha512-r/Uq7aqrusg25Y0qHwV48cFnMY6K/CuZdGt3EggRx3kY4sMv8lG+AFoMlrmTcYVMG1BaJvQfv9Cthw4Ll8z7fQ==
 
 strophejs-plugin-disco@0.0.2:
   version "0.0.2"
@@ -5516,11 +5498,6 @@ xtend@^4.0.0, xtend@~4.0.1:
   version "4.0.0"
   resolved "https://registry.yarnpkg.com/y18n/-/y18n-4.0.0.tgz#95ef94f85ecc81d007c264e190a120f0a3c8566b"
   integrity sha512-r9S/ZyXu/Xu9q1tYlpsLIsa3EeLXXk0VwlxqTcFRfg9EhMW+17kbt9G0NrgCmhGb5vT2hyhJZLfDGx+7+5Uj/w==
-
-yaeti@1.0.1:
-  version "1.0.1"
-  resolved "https://registry.yarnpkg.com/yaeti/-/yaeti-1.0.1.tgz#217d04bbcdcbbd86cc478e4655aa4c28c493debf"
-  integrity sha1-IX0Eu83LvYbMR45GVapMKMST3r8=
 
 yallist@^2.1.2:
   version "2.1.2"
