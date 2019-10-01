@@ -101,6 +101,7 @@ JitsiMeetJS.setLogLevel(JitsiMeetJS.logLevels.ERROR);
         - TRACK_ADDED - stream received. (parameters - JitsiTrack)
         - TRACK_REMOVED - stream removed. (parameters - JitsiTrack)
         - TRACK_MUTE_CHANGED - JitsiTrack was muted or unmuted. (parameters - JitsiTrack)
+        - TRACK_AUDIO_LEVEL_CHANGED - audio level of JitsiTrack has changed. (parameters - participantId(string), audioLevel(number))
         - DOMINANT_SPEAKER_CHANGED - the dominant speaker is changed. (parameters - id(string))
         - USER_JOINED - new user joined a conference. (parameters - id(string), user(JitsiParticipant))
         - USER_LEFT - a participant left conference. (parameters - id(string), user(JitsiParticipant))
@@ -227,6 +228,7 @@ This objects represents the server connection. You can create new ```JitsiConnec
         8. enableStatsID - enables sending callStatsUsername as stats-id in presence, jicofo and videobridge will use it as endpointID to report stats
         9. enableDisplayNameInStats - enables sending the users display name, if set, to callstats as alias of the endpointID stats
         10. startSilent - enables silent mode, will mark audio as inactive will not send/receive audio
+        11. confID - Used for statistics to identify conference, if tenants are supported will contain tenant and the non lower case variant for the room name.
 
         **NOTE: if 4 and 5 are set the library is going to send events to callstats. Otherwise the callstats integration will be disabled.**
 
