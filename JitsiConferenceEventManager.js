@@ -220,8 +220,24 @@ JitsiConferenceEventManager.prototype.setupChatRoomListeners = function() {
                     { p2p: jingleSession.isP2P }));
         });
 
-    this.chatRoomForwarder.forward(XMPPEvents.RECORDER_STATE_CHANGED,
-        JitsiConferenceEvents.RECORDER_STATE_CHANGED);
+    chatRoom.addListener(XMPPEvents.RECORDER_STATE_CHANGED,
+        (session, jid) => {
+
+            if (jid) {
+                const participant = conference.getParticipantById(
+                    Strophe.getResourceFromJid(jid));
+
+                if (session.getStatus() === 'off') {
+                    session.setTerminator(participant);
+                } else if (session.getStatus() === 'on') {
+                    session.setInitiator(participant);
+                }
+            }
+
+            conference.eventEmitter.emit(
+                JitsiConferenceEvents.RECORDER_STATE_CHANGED,
+                session);
+        });
 
     this.chatRoomForwarder.forward(XMPPEvents.TRANSCRIPTION_STATUS_CHANGED,
         JitsiConferenceEvents.TRANSCRIPTION_STATUS_CHANGED);
@@ -443,7 +459,7 @@ JitsiConferenceEventManager.prototype.setupRTCListeners = function() {
         const key = 'data.channel.opened';
 
         // TODO: Move all of the 'connectionTimes' logic to its own module.
-        logger.log(`(TIME) ${key}`, now);
+        logger.log(`(TIME) ${key}:\t`, now);
         conference.room.connectionTimes[key] = now;
         Statistics.sendAnalytics(
             createConnectionStageReachedEvent(key, { value: now }));
@@ -616,6 +632,11 @@ JitsiConferenceEventManager.prototype.setupXMPPListeners = function() {
             });
 
             conference.eventEmitter.emit(JitsiConferenceEvents.STARTED_MUTED);
+        });
+
+    this._addConferenceXMPPListener(XMPPEvents.CONFERENCE_TIMESTAMP_RECEIVED,
+        createdTimestamp => {
+            conference.eventEmitter.emit(JitsiConferenceEvents.CONFERENCE_CREATED_TIMESTAMP, createdTimestamp);
         });
 };
 

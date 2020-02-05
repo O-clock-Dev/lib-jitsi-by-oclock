@@ -23,18 +23,18 @@ import XMPPEvents from '../../service/xmpp/XMPPEvents';
 const logger = getLogger(__filename);
 
 /**
- *
- * @param token
- * @param bosh
+ * Creates XMPP connection.
+ * @param {string} [token] - JWT token used for authentication(JWT authentication module must be enabled in Prosody).
+ * @param {string} serviceUrl - The service URL for XMPP connection.
  */
-function createConnection(token, bosh = '/http-bind') {
+function createConnection(token, serviceUrl = '/http-bind') {
     // Append token as URL param
     if (token) {
         // eslint-disable-next-line no-param-reassign
-        bosh += `${bosh.indexOf('?') === -1 ? '?' : '&'}token=${token}`;
+        serviceUrl += `${serviceUrl.indexOf('?') === -1 ? '?' : '&'}token=${token}`;
     }
 
-    const conn = new Strophe.Connection(bosh);
+    const conn = new Strophe.Connection(serviceUrl);
 
     // The default maxRetries is 5, which is too long.
     conn.maxRetries = 3;
@@ -67,6 +67,9 @@ export default class XMPP extends Listenable {
     /**
      * FIXME describe all options
      * @param {Object} options
+     * @param {String} options.serviceUrl - URL passed to the XMPP client which will be used to establish XMPP
+     * connection with the server.
+     * @param {String} options.bosh - Deprecated, use {@code serviceUrl}.
      * @param {Array<Object>} options.p2pStunServers see
      * {@link JingleConnectionPlugin} for more details.
      * @param token
@@ -81,7 +84,8 @@ export default class XMPP extends Listenable {
         this.authenticatedUser = false;
         this._initStrophePlugins(this);
 
-        this.connection = createConnection(token, options.bosh);
+        // FIXME remove deprecated bosh option at some point
+        this.connection = createConnection(token, options.serviceUrl || options.bosh);
 
         this._lastSuccessTracker = new LastSuccessTracker();
         this._lastSuccessTracker.startTracking(this.connection);
@@ -206,12 +210,19 @@ export default class XMPP extends Listenable {
                     identities.forEach(identity => {
                         if (identity.type === 'speakerstats') {
                             this.speakerStatsComponentAddress = identity.name;
+                        }
 
-                            this.connection.addHandler(
-                                this._onPrivateMessage.bind(this), null,
-                                'message', null, null);
+                        if (identity.type === 'conference_duration') {
+                            this.conferenceDurationComponentAddress = identity.name;
                         }
                     });
+
+                    if (this.speakerStatsComponentAddress
+                        || this.conferenceDurationComponentAddress) {
+                        this.connection.addHandler(
+                            this._onPrivateMessage.bind(this), null,
+                            'message', null, null);
+                    }
                 })
                 .catch(error => {
                     const errmsg = 'Feature discovery error';
@@ -359,7 +370,7 @@ export default class XMPP extends Listenable {
     attach(options) {
         const now = this.connectionTimes.attaching = window.performance.now();
 
-        logger.log(`(TIME) Strophe Attaching\t:${now}`);
+        logger.log('(TIME) Strophe Attaching:\t', now);
         this.connection.attach(options.jid, options.sid,
             parseInt(options.rid, 10) + 1,
             this.connectionHandler.bind(this, {
@@ -713,7 +724,7 @@ export default class XMPP extends Listenable {
 
     /**
      * A private message is received, message that is not addressed to the muc.
-     * We expect private message coming from speaker stats component if it is
+     * We expect private message coming from plugins component if it is
      * enabled and running.
      *
      * @param {string} msg - The message.
@@ -721,8 +732,8 @@ export default class XMPP extends Listenable {
     _onPrivateMessage(msg) {
         const from = msg.getAttribute('from');
 
-        if (!this.speakerStatsComponentAddress
-            || from !== this.speakerStatsComponentAddress) {
+        if (!(from === this.speakerStatsComponentAddress
+            || from === this.conferenceDurationComponentAddress)) {
             return;
         }
 
@@ -735,6 +746,13 @@ export default class XMPP extends Listenable {
             && parsedJson.users) {
             this.eventEmitter.emit(
                 XMPPEvents.SPEAKER_STATS_RECEIVED, parsedJson.users);
+        }
+
+        if (parsedJson
+            && parsedJson[JITSI_MEET_MUC_TYPE] === 'conference_duration'
+            && parsedJson.created_timestamp) {
+            this.eventEmitter.emit(
+                XMPPEvents.CONFERENCE_TIMESTAMP_RECEIVED, parsedJson.created_timestamp);
         }
 
         return true;
